@@ -2,7 +2,8 @@ module Geom4hepMakieExt
 
 using Geom4hep
 using Geom4hep: AbstractShape, Volume, Transformation3D, AABB, BVH, build_bvh, extent, inside,
-                kInside, kOutside, distance_to_in, distance_to_out, Point3, Vector3, _gbpoint
+                kInside, kOutside, distance_to_in, distance_to_out, Point3, Vector3, _gbpoint,
+                shape_to_mesh
 import Geom4hep: draw, draw!, draw_distance_to_in, draw_distance_to_out
 using GeometryBasics: GeometryBasics, Mesh, coordinates, faces
 using LinearAlgebra: normalize
@@ -13,10 +14,11 @@ const colors = [Makie.RGBf(g, g, g) for g in range(0.95f0, 0.05f0, length=16)]
 
 #---Draw a Volume---------------------------------------------------------------
 function draw!(s::LScene, vol::Volume{T}, t::Transformation3D{T}, level::Int64, wireframe::Bool, bvh::Bool, maxlevel::Int64) where T
-    m = GeometryBasics.mesh(vol.shape)
-    if ! isone(t)
-        points = coordinates(m)
-        m = Mesh(map(c -> _gbpoint(Point3{T}(c) * t), points), faces(m))
+    if wireframe                       # the faces of the shape, without the diagonals of triangles
+        m = GeometryBasics.mesh(vol.shape)
+        isone(t) || (m = Mesh(map(c -> _gbpoint(Point3{T}(c) * t), coordinates(m)), faces(m)))
+    else
+        m = shape_to_mesh(vol.shape; transformation=t)
     end
     icolor = clamp(level, 1, length(colors))
     if wireframe
@@ -51,7 +53,7 @@ end
 
 #---Draw a Shape---------------------------------------------------------------
 function draw!(s::LScene, shape::AbstractShape; wireframe::Bool=false)
-    m = GeometryBasics.mesh(shape)
+    m = wireframe ? GeometryBasics.mesh(shape) : shape_to_mesh(shape)
     if wireframe
         wireframe!(s, m)
     else

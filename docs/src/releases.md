@@ -1,5 +1,10 @@
 # Release Notes
 
+## Unreleased
+- New features:
+    - `shape_to_mesh`: mesh of a shape with normals at the vertices, used by `draw` for smooth
+      shading of curved surfaces and sharp edges.
+
 ## 0.1.0 - 19-11-2026
 - New features:
     - Shapes: `Sphere` (with ϕ and θ segments, also GDML `orb`), `Polyhedra` and `Torus`, and the mesh
