@@ -283,7 +283,9 @@ Makie exports some names that are also Geom4hep shapes (`Box`, `Sphere`, ...): i
 names you need, as above, or qualify the shapes (`Geom4hep.Box`).
 
 [`mesh(shape)`](@ref mesh) returns a `GeometryBasics.Mesh` of the surface of a shape, for other
-visualization or export tools.
+visualization or export tools. [`shape_to_mesh(shape)`](@ref shape_to_mesh) returns a mesh of
+triangles oriented outwards with normals at the vertices, smooth on the curved surfaces and sharp at
+the edges, which is the one that `draw` uses.
 
 ## Benchmarks
 
