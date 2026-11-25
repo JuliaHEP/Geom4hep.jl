@@ -87,6 +87,17 @@ for _ in 1:5000
 end
 bad
 
+corner = rcube.left.right
+fig = Figure(size=(900, 300))
+draw!(LScene(fig[1, 1], show_axis=false), rcube)
+draw!(LScene(fig[1, 2], show_axis=false), corner)
+draw!(LScene(fig[1, 3], show_axis=false), corner; wireframe=true)
+fig
+
+m = csg_mesh(rcube)
+P, F = coordinates(m), faces(m)
+sum(f -> P[f[1]] ⋅ (P[f[2]] × P[f[3]]), F) / 6 / exact
+
 draw_distance_to_in(rcube, 50_000)
 
 xs = range(0, 0.6a, length=300)

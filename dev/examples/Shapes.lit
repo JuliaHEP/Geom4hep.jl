@@ -94,7 +94,11 @@ frame = BooleanSubtraction(frame, hole, Transformation3D{T}(0, 0, 0, π/2, 0, 0)
 frame = BooleanUnion(frame, Sphere{T}(0, 6cm), Transformation3D{T}(0, 0, 20cm))
 inside(frame, Point3{T}(0, 0, 0)) == kOutside, inside(frame, Point3{T}(0, 0, 24cm)) == kInside
 
-# The rays shot by `draw_distance_to_in` show the result:
+# Their mesh is computed with boolean operations on the meshes of the operands
+# ([`csg_mesh`](@ref)), so they are drawn like any other shape:
+draw(frame)
+
+# The rays shot by `draw_distance_to_in` check the result independently of the mesh:
 draw_distance_to_in(frame, 50_000)
 
 # ## Single precision

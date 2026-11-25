@@ -49,6 +49,8 @@ frame = BooleanSubtraction(frame, hole, Transformation3D{T}(0, 0, 0, π/2, 0, 0)
 frame = BooleanUnion(frame, Sphere{T}(0, 6cm), Transformation3D{T}(0, 0, 20cm))
 inside(frame, Point3{T}(0, 0, 0)) == kOutside, inside(frame, Point3{T}(0, 0, 24cm)) == kInside
 
+draw(frame)
+
 draw_distance_to_in(frame, 50_000)
 
 box32 = Box{Float32}(10cm, 15cm, 20cm)
