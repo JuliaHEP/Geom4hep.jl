@@ -59,13 +59,22 @@ include("Benchmark.jl")
 """
     draw(object; kwargs...)
 
-Draw a shape, volume hierarchy, AABB or BVH. Requires a Makie backend (e.g. `using GLMakie`).
+Draw a shape, volume hierarchy or BVH in a new figure. Requires a Makie backend (e.g.
+`using GLMakie`). The keyword arguments are:
+- `wireframe=false`: draw the edges of the faces instead of the surfaces (shapes and volumes);
+- `bvh=false` and `maxlevel=999`: draw the bounding boxes of the daughters, and the depth of the
+  volume hierarchy to draw (volumes);
+- any other keyword argument is passed to the Makie plotting function (`mesh!` or `wireframe!`),
+  and overrides the defaults, e.g. `draw(shape; color=:blue)`, `draw(shape; color=(:red, 0.5))` or
+  `draw(shape; wireframe=true, linewidth=2)`. For a volume, it applies to all the levels of the
+  hierarchy (the default colors are grey levels by depth).
 """
 function draw end
 """
     draw!(scene, object; kwargs...)
 
 Draw a shape, volume hierarchy, AABB or BVH into an existing `LScene`. Requires a Makie backend.
+The keyword arguments are as for [`draw`](@ref).
 """
 function draw! end
 """

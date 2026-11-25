@@ -14,6 +14,10 @@
       built from boolean shapes, with the translation of the Geant4 transformations
       ([#21](https://github.com/JuliaHEP/Geom4hep.jl/pull/21)). The Shapes and RoundCube examples
       draw the boolean shapes ([#25](https://github.com/JuliaHEP/Geom4hep.jl/pull/25)).
+- Changes:
+    - `draw` and `draw!` pass the extra keyword arguments to the Makie plotting functions, e.g.
+      `draw(shape; color=:blue)` or `draw(shape; wireframe=true, linewidth=2)`
+      ([#26](https://github.com/JuliaHEP/Geom4hep.jl/pull/26)).
 - Fixes:
     - Boolean shapes: `inside` and `normal` at the points on the surface of both operands (seams of
       unions, edges where the cut of a subtraction meets the surface), and the quick bounding box
