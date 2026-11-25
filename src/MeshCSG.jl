@@ -238,22 +238,35 @@ function csg_mesh(shape::AbstractShape{T}; facets::Integer=64, eps::Real=1e-7) w
     lo, hi = extent(shape)
     abseps = eps * max(maximum(abs.(hi - lo)), 1e-12)
     polys = csg_polygons(shape, one(Transformation3D{T}), facets, abseps)
-    pts, loops, planes = _weld_polygons(polys, abseps)
-    _drop_degenerate!(loops, planes, pts, abseps)
-    _insert_tjunctions!(loops, pts, abseps)
-    faces, fplanes = _merge_coplanar(loops, planes, pts, abseps)
-    _remove_collinear!(faces, pts, abseps)
-    loops = reduce(vcat, (_face_pieces(f, p, pts, abseps) for (f, p) in zip(faces, fplanes)); init=Vector{Int}[])
-    _drop_degenerate!(loops, nothing, pts, abseps)
-    _insert_tjunctions!(loops, pts, abseps)       # the vertices skipped by earcut
-    tris = TriangleFace{Int}[]
-    for loop in loops
-        _triangulate_convex!(tris, pts, loop, abseps)
-    end
+    pts, tris = _clean_polygons(polys, abseps)
     return GeometryBasics.Mesh(_gbpoint.(Point3{T}.(pts)), tris)
 end
 
 #---Cleanup of the polygons of the result---------------------------------------------------------
+# The vertices and the triangles of the closed mesh made of the polygons `polys` (see csg_mesh)
+function _clean_polygons(polys::Vector{CSGPolygon}, tol)
+    pts, loops, planes = _weld_polygons(polys, tol)
+    _drop_degenerate!(loops, planes, pts, tol)
+    _insert_tjunctions!(loops, pts, tol)
+    faces, fplanes = _merge_coplanar(loops, planes, pts, tol)
+    _remove_collinear!(faces, pts, tol)
+    loops = reduce(vcat, (_face_pieces(f, p, pts, tol) for (f, p) in zip(faces, fplanes)); init=Vector{Int}[])
+    return pts, _triangulate_loops!(loops, pts, tol)
+end
+
+# Triangles of convex loops (the pieces of the faces) that make a closed surface. The slivers of
+# zero width (e.g. from earcut) are dropped, and their vertices are inserted in the edges of the
+# neighbouring loops (with the vertices skipped by earcut), before the loops are triangulated.
+function _triangulate_loops!(loops, pts, tol)
+    _drop_degenerate!(loops, nothing, pts, tol)
+    _insert_tjunctions!(loops, pts, tol)
+    tris = TriangleFace{Int}[]
+    for loop in loops
+        _triangulate_convex!(tris, pts, loop, tol)
+    end
+    return tris
+end
+
 # Merge the vertices closer than `tol` (a hash grid of cells of size `tol`, looking in the 27
 # neighbouring cells). The polygons become loops of indices, without repeated vertices.
 function _weld_polygons(polys::Vector{CSGPolygon}, tol)
