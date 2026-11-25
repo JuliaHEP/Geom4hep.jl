@@ -47,10 +47,10 @@ function Base.show(io::IO, mu::MultiUnion{T}) where T
     print(io, "MultiUnion{$T} with ", ncomponents(mu), " components")
 end
 
+# The mesh of the union of the components (see csg_mesh)
 function GeometryBasics.mesh(mu::MultiUnion{T}; facets::Integer=64) where T
-    meshes = [(m = mesh(mu.shapes[i]; facets); Mesh(map(c -> _gbpoint(Point3{T}(c) * mu.transformations[i]), coordinates(m)), faces(m)))
-              for i in 1:ncomponents(mu)]
-    merge(meshes)
+    ncomponents(mu) == 0 && return GeometryBasics.Mesh(GeometryBasics.Point3{T}[], TriangleFace{Int}[])
+    return csg_mesh(mu; facets)
 end
 
 #---Basic functions----------------------------------------------------------------------------------

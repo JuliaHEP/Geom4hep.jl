@@ -11,9 +11,7 @@ import GeometryBasics
         @test all(n -> norm(n) ≈ 1, N)
         # the normals of the vertices are on the outer side of their triangles
         @test all(f -> ((P[f[2]] - P[f[1]]) × (P[f[3]] - P[f[1]])) ⋅ (N[f[1]] + N[f[2]] + N[f[3]]) > 0, F)
-        # a closed surface oriented outwards encloses the volume of the shape (the mesh of a
-        # MultiUnion is the mesh of its components)
-        s isa MultiUnion && continue
+        # a closed surface oriented outwards encloses the volume of the shape
         @test signed_volume(P, F) ≈ capacity(s) rtol = 0.02
     end
     @testset "csg_mesh $(shapename(s))" for s in test_shapes(T)
@@ -44,6 +42,8 @@ import GeometryBasics
         @test signed_volume(GeometryBasics.coordinates(m), GeometryBasics.faces(m)) ≈ 6
         # a box with a face in common with the subtracted one: empty
         @test isempty(GeometryBasics.faces(csg_mesh(BooleanSubtraction(a, a))))
+        # an empty MultiUnion has an empty mesh
+        @test isempty(GeometryBasics.faces(mesh(MultiUnion{T}())))
     end
     @testset "transformation" begin
         s = Tube{T}(1, 2, 3, 0, 2π)
