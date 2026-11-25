@@ -154,9 +154,25 @@ end
 bad
 
 # ## Drawing
-# The meshes of boolean shapes are only the meshes of their operands, so `draw` is not useful here.
-# `draw_distance_to_in` shoots random rays and draws the points where they enter the shape, which
-# shows its real surface:
+# The mesh of a boolean shape is computed with boolean operations on the meshes of its operands
+# ([`csg_mesh`](@ref)), so `draw` shows the surface of the result. Here the RoundCube and one of its
+# corners (`s4`, the right operand of the unions), also as a wireframe that shows the triangles of
+# the mesh:
+corner = rcube.left.right
+fig = Figure(size=(900, 300))
+draw!(LScene(fig[1, 1], show_axis=false), rcube)
+draw!(LScene(fig[1, 2], show_axis=false), corner)
+draw!(LScene(fig[1, 3], show_axis=false), corner; wireframe=true)
+fig
+
+# The mesh is closed, and the volume it encloses is close to the exact one (the curved surfaces
+# are approximated by 64 facets):
+m = csg_mesh(rcube)
+P, F = coordinates(m), faces(m)
+sum(f -> P[f[1]] ⋅ (P[f[2]] × P[f[3]]), F) / 6 / exact
+
+# `draw_distance_to_in` checks the surface independently of the mesh: it shoots random rays and
+# draws the points where they enter the shape:
 draw_distance_to_in(rcube, 50_000)
 
 # A slice of `inside` through a corner region shows the rounded edges and vertex:
