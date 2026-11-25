@@ -45,20 +45,6 @@ import GeometryBasics
         # an empty MultiUnion has an empty mesh
         @test isempty(GeometryBasics.faces(mesh(MultiUnion{T}())))
     end
-    @testset "csg_mesh sliver" begin
-        # A tetrahedron (a, b, c, d) with the face (a, c, b) split at the middle m of the edge ab, and
-        # a sliver of zero width (a, m, b) between this face and the face (a, b, d), as earcut can
-        # produce. The sliver is dropped and m inserted in the edge ab of (a, b, d): the mesh stays
-        # closed (it was open when the zero-area triangle of the sliver was skipped).
-        pts = Point3{Float64}[(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (0.5, 0, 0)]
-        a, b, c, d, m = 1:5
-        loops = [[a, c, b, m], [a, b, d], [a, d, c], [b, c, d], [a, m, b]]
-        tris = Geom4hep._triangulate_loops!(loops, pts, 1e-9)
-        edges = Set((Int(t[k]), Int(t[mod1(k + 1, 3)])) for t in tris for k in 1:3)
-        @test all(e -> (e[2], e[1]) in edges, edges)
-        @test m in Iterators.flatten(Tuple.(tris))
-        @test signed_volume(pts, tris) ≈ 1 / 6
-    end
     @testset "transformation" begin
         s = Tube{T}(1, 2, 3, 0, 2π)
         t = Transformation3D{T}(10, 0, 0, RotXYZ{T}(π/2, 0, 0))
@@ -71,6 +57,21 @@ import GeometryBasics
         @test count(n -> abs(n[2]) ≈ 1, m.normal) > 0
         @test all(n -> abs(n[2]) ≈ 1 || abs(n[2]) < 1e-3, m.normal)
     end
+end
+
+@testset "csg_mesh sliver" begin
+    # A tetrahedron (a, b, c, d) with the face (a, c, b) split at the middle m of the edge ab, and
+    # a sliver of zero width (a, m, b) between this face and the face (a, b, d), as earcut can
+    # produce. The sliver is dropped and m inserted in the edge ab of (a, b, d): the mesh stays
+    # closed (it was open when the zero-area triangle of the sliver was skipped).
+    pts = Point3{Float64}[(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (0.5, 0, 0)]
+    a, b, c, d, m = 1:5
+    loops = [[a, c, b, m], [a, b, d], [a, d, c], [b, c, d], [a, m, b]]
+    tris = Geom4hep._triangulate_loops!(loops, pts, 1e-9)
+    edges = Set((Int(t[k]), Int(t[mod1(k + 1, 3)])) for t in tris for k in 1:3)
+    @test all(e -> (e[2], e[1]) in edges, edges)
+    @test m in Iterators.flatten(Tuple.(tris))
+    @test sum(t -> pts[t[1]] ⋅ (pts[t[2]] × pts[t[3]]), tris) / 6 ≈ 1 / 6
 end
 
 @testset "csg_mesh of the booleans of cms2018" begin
