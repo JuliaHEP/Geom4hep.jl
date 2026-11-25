@@ -13,7 +13,7 @@ using Makie
 const colors = [Makie.RGBf(g, g, g) for g in range(0.95f0, 0.05f0, length=16)]
 
 #---Draw a Volume---------------------------------------------------------------
-function draw!(s::LScene, vol::Volume{T}, t::Transformation3D{T}, level::Int64, wireframe::Bool, bvh::Bool, maxlevel::Int64) where T
+function draw!(s::LScene, vol::Volume{T}, t::Transformation3D{T}, level::Int64, wireframe::Bool, bvh::Bool, maxlevel::Int64; kwargs...) where T
     if wireframe                       # the faces of the shape, without the diagonals of triangles
         m = GeometryBasics.mesh(vol.shape)
         isone(t) || (m = Mesh(map(c -> _gbpoint(Point3{T}(c) * t), coordinates(m)), faces(m)))
@@ -22,16 +22,16 @@ function draw!(s::LScene, vol::Volume{T}, t::Transformation3D{T}, level::Int64, 
     end
     icolor = clamp(level, 1, length(colors))
     if wireframe
-        wireframe!(s, m, color=colors[end+1-icolor], visible = level != 1)
+        wireframe!(s, m; color=colors[end+1-icolor], visible = level != 1, kwargs...)
     else
-        mesh!(s, m, color=colors[icolor], transparency=true, visible = level != 1)
+        mesh!(s, m; color=colors[icolor], transparency=true, visible = level != 1, kwargs...)
     end
     if level < maxlevel
         for daughter in vol.daughters
             if level == 1 && bvh
                 draw!(s, Geom4hep.AABB(daughter))
             end
-            draw!(s, daughter.volume, daughter.transformation * t, level+1, wireframe, bvh, maxlevel)
+            draw!(s, daughter.volume, daughter.transformation * t, level+1, wireframe, bvh, maxlevel; kwargs...)
         end
         if level == 1 && bvh && !isempty(vol.daughters)
             draw!(s, build_bvh(vol.daughters))
@@ -40,56 +40,56 @@ function draw!(s::LScene, vol::Volume{T}, t::Transformation3D{T}, level::Int64, 
     return s
 end
 
-function draw!(s::LScene, vol::Volume{T}; wireframe::Bool=false, bvh::Bool=false, maxlevel::Int64=999) where T
-    draw!(s, vol, one(Transformation3D{T}), 1, wireframe, bvh, maxlevel)
+function draw!(s::LScene, vol::Volume{T}; wireframe::Bool=false, bvh::Bool=false, maxlevel::Int64=999, kwargs...) where T
+    draw!(s, vol, one(Transformation3D{T}), 1, wireframe, bvh, maxlevel; kwargs...)
 end
 
-function draw(vol::Volume{T}; wireframe::Bool=false, bvh::Bool=false, maxlevel::Int64=999) where T
+function draw(vol::Volume{T}; wireframe::Bool=false, bvh::Bool=false, maxlevel::Int64=999, kwargs...) where T
     fig = Figure(size=(1280, 720))
     s = LScene(fig[1,1])
-    draw!(s, vol, one(Transformation3D{T}), 1, wireframe, bvh, maxlevel)
+    draw!(s, vol, one(Transformation3D{T}), 1, wireframe, bvh, maxlevel; kwargs...)
     return fig
 end
 
 #---Draw a Shape---------------------------------------------------------------
-function draw!(s::LScene, shape::AbstractShape; wireframe::Bool=false)
+function draw!(s::LScene, shape::AbstractShape; wireframe::Bool=false, kwargs...)
     m = wireframe ? GeometryBasics.mesh(shape) : shape_to_mesh(shape)
     if wireframe
-        wireframe!(s, m)
+        wireframe!(s, m; kwargs...)
     else
-        mesh!(s, m, color=colors[2], transparency=true)
+        mesh!(s, m; color=colors[2], transparency=true, kwargs...)
     end
     return s
 end
 
-function draw(shape::AbstractShape; wireframe::Bool=false)
+function draw(shape::AbstractShape; wireframe::Bool=false, kwargs...)
     fig = Figure()
     s = LScene(fig[1,1])
-    draw!(s, shape; wireframe)
+    draw!(s, shape; wireframe, kwargs...)
     return fig
 end
 
 #---Draw a AABB------------------------------------------------------------------
-function draw!(s::LScene, aabb::AABB; color::Symbol=:blue)
-    wireframe!(s, Mesh(_gbpoint.(coordinates(aabb)), faces(aabb)), color=color)
+function draw!(s::LScene, aabb::AABB; color=:blue, kwargs...)
+    wireframe!(s, Mesh(_gbpoint.(coordinates(aabb)), faces(aabb)); color, kwargs...)
     return s
 end
 
-function draw!(s::LScene, bvh::BVH; color::Symbol=:green)
+function draw!(s::LScene, bvh::BVH; color=:green, kwargs...)
     if isempty(bvh.children)
-        draw!(s, bvh.aabb, color=color)
+        draw!(s, bvh.aabb; color, kwargs...)
     else
         for c in bvh.children
-            draw!(s, c, color=color)
+            draw!(s, c; color, kwargs...)
         end
     end
     return s
 end
 
-function draw(bvh::BVH; color::Symbol=:green)
+function draw(bvh::BVH; color=:green, kwargs...)
     fig = Figure()
     s = LScene(fig[1,1])
-    draw!(s, bvh; color=color)
+    draw!(s, bvh; color, kwargs...)
     return fig
 end
 
