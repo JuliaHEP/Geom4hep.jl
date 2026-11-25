@@ -93,6 +93,7 @@ draw_distance_to_in
 draw_distance_to_out
 mesh
 shape_to_mesh
+csg_mesh
 ```
 
 ## Benchmarks

@@ -4,6 +4,10 @@
 - New features:
     - `shape_to_mesh`: mesh of a shape with normals at the vertices, used by `draw` for smooth
       shading of curved surfaces and sharp edges.
+    - `csg_mesh`: mesh of the boolean shapes (and `MultiUnion`) computed with boolean operations on
+      the meshes of their operands (BSP trees, as csg.js and ROOT). The result is a closed mesh,
+      with the coplanar fragments merged. Used by `mesh` and `draw` for the boolean shapes, which
+      were drawn before as the overlay of their operands.
 
 ## 0.1.0 - 19-11-2026
 - New features:

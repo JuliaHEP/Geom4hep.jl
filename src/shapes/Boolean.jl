@@ -93,21 +93,8 @@ function Base.show(io::IO, shape::BooleanIntersection{T}) where {T}
 end
 
 
-function GeometryBasics.mesh(shape::BooleanUnion{T}; facets::Integer=64) where {T}
-    (; left, right, transformation) = shape
-    rmesh = mesh(right; facets)
-    merge([mesh(left; facets), Mesh(map(c -> _gbpoint(Point3{T}(c) * transformation), coordinates(rmesh)), faces(rmesh))])
-end
-function GeometryBasics.mesh(shape::BooleanSubtraction{T}; facets::Integer=64) where {T}
-    (; left, right, transformation) = shape
-    rmesh = mesh(right; facets)
-    merge([mesh(left; facets), Mesh(map(c -> _gbpoint(Point3{T}(c) * transformation), coordinates(rmesh)), faces(rmesh))])
-end
-function GeometryBasics.mesh(shape::BooleanIntersection{T}; facets::Integer=64) where {T}
-    (; left, right, transformation) = shape
-    rmesh = mesh(right; facets)
-    merge([mesh(left; facets), Mesh(map(c -> _gbpoint(Point3{T}(c) * transformation), coordinates(rmesh)), faces(rmesh))])
-end
+# The mesh of the result of the boolean operation (see csg_mesh)
+GeometryBasics.mesh(shape::BooleanShape; facets::Integer=64) = csg_mesh(shape; facets)
 
 #---Basic functions---------------------------------------------------------------------------------
 function extent(shape::BooleanUnion{T})::Tuple{Point3{T},Point3{T}} where {T}

@@ -14,7 +14,7 @@ export tolerance, push_tolerance
 export read_gdml
 export GeometryModel, ShapeRef, close_geometry, shape_call
 export NavState, locate, compute_step, in_world, material_index, xray
-export coordinates, faces, normals, mesh, shape_to_mesh
+export coordinates, faces, normals, mesh, shape_to_mesh, csg_mesh
 
 using StaticArrays, LinearAlgebra, Rotations, AbstractTrees, DataStructures
 using Adapt
@@ -42,6 +42,7 @@ include("shapes/NoShape.jl")
 include("shapes/Boolean.jl")
 include("shapes/MultiUnion.jl")
 include("ShapeMesh.jl")
+include("MeshCSG.jl")
 include("Materials.jl")
 include("Volume.jl")
 include("BVH.jl")
