@@ -1,5 +1,7 @@
 # Release Notes
 
+## Unreleased
+
 ## 0.1.1 - 25-11-2026
 - New features:
     - `shape_to_mesh`: mesh of a shape with normals at the vertices, used by `draw` for smooth
