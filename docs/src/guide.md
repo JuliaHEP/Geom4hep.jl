@@ -25,6 +25,12 @@ box  = Box{Float64}(1cm, 2cm, 3cm)          # half lengths 10, 20 and 30 mm
 tube = Tube{Float64}(0, 5cm, 1m, 0, 90deg)  # a quarter of a cylinder
 ```
 
+For the materials, energies are in MeV (`eV`, `keV`, `MeV`, `GeV`), temperatures in kelvin and
+pressures in `pascal`, `bar` or `atmosphere`, as in Geant4. Masses are in mg, so that densities are
+in g/cm³ (`7.874g/cm3 == 7.874`) and molar masses in mg/mole (`55.845g/mole`). The module also has
+the physical constants used for the materials (`Avogadro`, `amu`, `fine_structure_const`,
+`classic_electr_radius`, `STP_Pressure`, `NTP_Temperature`, ...), with the values of CLHEP.
+
 ## Points, vectors and transformations
 
 [`Point3`](@ref) is a position and [`Vector3`](@ref) a displacement or a direction. Both are static
@@ -156,12 +162,46 @@ end
 
 ## Materials
 
-A [`Material`](@ref) has a name, a state, a density and a composition in [`Element`](@ref)s, which
-are made of [`Isotope`](@ref)s. Only the density is used for now (by [`xray`](@ref)):
+Materials follow the Geant4 model: an [`Isotope`](@ref) (G4Isotope) has an atomic number, a number
+of nucleons and a molar mass; an [`Element`](@ref) (G4Element) is a mixture of isotopes; a
+[`Material`](@ref) (G4Material) is made of elements, with a density, a state, a temperature and a
+pressure. The NIST data of Geant4 give the elements with their natural isotopic composition
+([`nist_element`](@ref)), and the materials `G4_<symbol>` of all the elements and a selection of
+compounds and HEP materials ([`nist_material`](@ref), [`nist_material_names`](@ref)):
 
 ```julia
-water = Material{T}("water"; density=1.0)
+using Geom4hep.Units
+water = nist_material(T, "G4_WATER")
+lead  = nist_material(T, "G4_Pb")
+Fe    = nist_element(T, "Fe")
 ```
+
+New materials are made as in Geant4: of a single element, of elements given by their number of
+atoms in a molecule (a compound), or of elements and materials given by mass fractions (a mixture):
+
+```julia
+H, O, N, Ar = (nist_element(T, s) for s in ("H", "O", "N", "Ar"))
+silicon = Material{T}("Silicon", 14, 28.0855g/mole, 2.33g/cm3)
+water   = Material{T}("Water", 1.0g/cm3; atoms=[H => 2, O => 1], state=:liquid, I=78eV)
+air     = Material{T}("Air", 1.205mg/cm3; fractions=[N => 0.7553, O => 0.2318, Ar => 0.0129], state=:gas)
+mixture = Material{T}("WaterLead", 6.0g/cm3; fractions=[water => 0.5, lead => 0.5])
+iron    = Element{T}("Iron", "Fe", 26, 55.845g/mole)             # with the natural isotopes
+```
+
+The derived quantities are computed as in Geant4: [`radiation_length`](@ref) (Tsai's formula),
+[`nuclear_interaction_length`](@ref), [`electron_density`](@ref),
+[`mean_excitation_energy`](@ref) (from the NIST data, from GDML, or from the elements),
+[`mass_fractions`](@ref) and [`atoms_per_volume`](@ref):
+
+```julia
+radiation_length(lead) / cm                # 0.5613
+nuclear_interaction_length(water) / cm     # 75.37
+mean_excitation_energy(water) / eV         # 78.0
+```
+
+A material can also be given by its density only, `Material{T}("iron"; density=7.874)`, which is
+enough for the navigation and the mass thickness of [`xray`](@ref); its radiation and interaction
+lengths are then unknown (`NaN`).
 
 ## Volumes and placements
 
@@ -195,6 +235,12 @@ world = read_gdml("cms2018.gdml", Float32)
 The materials, the shapes in the table of [supported shapes](@ref Supported-shapes), the booleans,
 the volumes, the physical volumes and the assemblies are read, with the units of the file converted to
 mm and radians. Solids that are not supported are replaced by [`NoShape`](@ref) with a warning.
+
+The materials are read as by Geant4: isotopes, elements (by `Z` and molar mass, or by isotopes),
+materials of a single element, compounds (`<composite>`), mixtures of elements and materials
+(`<fraction>`), with their density, state, temperature, pressure and mean excitation energy
+(`<MEE>`), in the units of the file. Elements and materials that are referenced but not defined in
+the file are taken from the NIST data (e.g. `G4_AIR` or `Fe`).
 
 ## Geometry model and navigation
 
@@ -252,7 +298,8 @@ just left ("blocked" volume), to avoid re-entering it immediately because of rou
 The navigator functions are plain Julia functions on isbits data, so they can be called from GPU
 kernels. [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl) gives kernels
 that run on any GPU. [`xray`](@ref) is an example: it computes an X-ray image of a geometry (the mass
-thickness along parallel rays) on the CPU (with Julia threads) or on a GPU:
+thickness along parallel rays, or the material budget in radiation or interaction lengths with
+`quantity=:radlen` or `:nuclen`) on the CPU (with Julia threads) or on a GPU:
 
 ```julia
 world = read_gdml("cms2018.gdml", Float32)

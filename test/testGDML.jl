@@ -6,9 +6,12 @@
     @test extent(world.shape)[2] ≈ Point3{T}(500, 500, 500)     # 100 cm full length → 500 mm half
     @test world.material.name == "Air"
     @test world.material.density ≈ T(0.00121399936124299)
-    @test length(world.material.composition) == 4
-    @test world.material.composition[1].element.name == "Nitrogen"
-    @test length(world.material.composition[1].element.composition) == 2
+    @test length(world.material.elements) == 4
+    @test world.material.elements[1].name == "Nitrogen"
+    @test length(world.material.elements[1].isotopes) == 2
+    @test world.material.elements[1].A ≈ T((0.99632 * 14.0031 + 0.00368 * 15.0001) * 1000)   # g/mole
+    @test sum(mass_fractions(world.material)) ≈ 1
+    @test radiation_length(world.material) ≈ T(301.5e3) rtol = 0.01                       # ~ 301.5 m
 
     @test length(world.daughters) == 1
     trd = world.daughters[1]

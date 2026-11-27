@@ -16,6 +16,7 @@ using Geom4hep, LinearAlgebra
     include("testBoolean.jl")
     include("testMultiUnion.jl")
     include("testVolume.jl")
+    include("testMaterials.jl")
     include("testNormals.jl")
     include("testShapeMesh.jl")
     include("testNavigation.jl")
