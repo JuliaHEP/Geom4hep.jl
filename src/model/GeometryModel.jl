@@ -32,9 +32,10 @@ struct FlatPlacement{T<:AbstractFloat}
 end
 
 struct FlatMaterial{T<:AbstractFloat}
-    density::T
-    temperature::T
-    Amass::T
+    density::T             # g/cm3
+    radlen::T              # radiation length (mm)
+    nuclen::T              # nuclear interaction length (mm)
+    electrondensity::T     # electrons/mm3
 end
 
 "Node of a BVH stored in depth-first order with escape indices (stackless traversal)."

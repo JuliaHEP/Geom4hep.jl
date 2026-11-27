@@ -59,6 +59,15 @@ AbstractMaterial
 Isotope
 Element
 Material
+nist_element
+nist_material
+nist_material_names
+radiation_length
+nuclear_interaction_length
+electron_density
+mean_excitation_energy
+mass_fractions
+atoms_per_volume
 ```
 
 ## Volumes

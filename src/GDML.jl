@@ -27,18 +27,40 @@ end
 _lunit(attrs) = _unit(attrs, "lunit", "mm")
 _aunit(attrs) = _unit(attrs, "aunit", "rad")
 
+# Units of the quantities of the materials (densities, molar masses, energies, temperatures, pressures)
+using .Units: g, mg, kg, mole, cm3, m3, eV, keV, MeV, GeV, kelvin, pascal, bar, atmosphere
+const _material_units = Dict{String,Float64}(
+    "g/cm3" => g/cm3, "mg/cm3" => mg/cm3, "kg/m3" => kg/m3, "g/cm^3" => g/cm3, "kg/m^3" => kg/m3,
+    "g/mole" => g/mole, "g/mol" => g/mole, "kg/mole" => kg/mole, "mg/mole" => mg/mole,
+    "eV" => eV, "keV" => keV, "MeV" => MeV, "GeV" => GeV,
+    "K" => kelvin, "kelvin" => kelvin,
+    "pascal" => pascal, "hep_pascal" => pascal, "Pa" => pascal, "bar" => bar, "atmosphere" => atmosphere, "atm" => atmosphere)
+
+# Value of a quantity of a material: an element <X value= unit=/> (with the default unit of the
+# GDML schema), or a reference <Xref ref=/> to a <quantity> of the <define> section
+function _material_quantity(dicts, e::XMLElement, default::AbstractString)
+    attrs = attributes_dict(e)
+    if haskey(attrs, "ref")
+        haskey(dicts.quantities, attrs["ref"]) || throw(ArgumentError("GDML: quantity $(attrs["ref"]) is not defined"))
+        return dicts.quantities[attrs["ref"]]
+    end
+    parse(Float64, attrs["value"]) * _parse_unit(_material_units, get(attrs, "unit", default))
+end
+
 struct GDMLDicts{T<:AbstractFloat}
     materials::Dict{String,AbstractMaterial{T}}
     solids::Dict{String,AbstractShape{T}}
     volumes::Dict{String,Volume{T}}
     positions::Dict{String, Vector3{T}}
     rotations::Dict{String, RotXYZ{T}}
+    quantities::Dict{String, Float64}
     function GDMLDicts{T}() where T<:AbstractFloat
         new(Dict{String,AbstractMaterial{T}}(),
             Dict{String,AbstractShape{T}}(),
             Dict{String,Volume{T}}(),
             Dict{String, Vector3{T}}(),
-            Dict{String, RotXYZ{T}}()
+            Dict{String, RotXYZ{T}}(),
+            Dict{String, Float64}()
         )
     end
 end
@@ -61,7 +83,12 @@ function fill_define!(dicts::GDMLDicts{T}, element::XMLElement) where T<:Abstrac
                 rotations[attrs["name"]] = RotZYX{T}(parse(T, attrs["z"]) * unit, 
                                                      parse(T, attrs["y"]) * unit, 
                                                      parse(T, attrs["x"]) * unit)
-            elseif elemname in ("matrix", "constant", "variable", "quantity")
+            elseif elemname == "quantity"
+                u = get(attrs, "unit", "")
+                f = haskey(_material_units, u) ? _material_units[u] : haskey(_length_units, u) ? _length_units[u] :
+                    haskey(_angle_units, u) ? _angle_units[u] : 1.0
+                dicts.quantities[attrs["name"]] = parse(Float64, attrs["value"]) * f
+            elseif elemname in ("matrix", "constant", "variable")
                 continue                         # e.g. tables of optical properties: not used
             else
                 @warn "GDML: define $elemname not yet supported" maxlog=1
@@ -70,66 +97,94 @@ function fill_define!(dicts::GDMLDicts{T}, element::XMLElement) where T<:Abstrac
     end
 end
 
-# process <materials/>
+# process <materials/> (as G4GDMLReadMaterials)
 function fill_materials!(dicts::GDMLDicts{T}, element::XMLElement) where T<:AbstractFloat
     (; materials) = dicts
-    for c in child_nodes(element)
-        if is_elementnode(c)
-            e = XMLElement(c)
-            elemname = name(e)
-            if elemname == "isotope"
-                attrs = attributes_dict(e)
-                matname = attrs["name"]
-                mass = zero(T)
-                for cc in child_nodes(e)
-                    if name(cc) == "atom"
-                        aa = attributes_dict(XMLElement(cc))
-                        mass = parse(T, aa["value"])
-                        break
-                    end
+    children(e) = (XMLElement(c) for c in child_nodes(e) if is_elementnode(c))
+    for e in children(element)
+        elemname = name(e)
+        attrs = attributes_dict(e)
+        matname = attrs["name"]
+        if elemname == "isotope"
+            A = 0.0
+            for c in children(e)
+                name(c) in ("atom", "atomref") && (A = _material_quantity(dicts, c, "g/mole"))
+            end
+            materials[matname] = Isotope{T}(matname, parse(Int, attrs["Z"]), parse(Int, attrs["N"]), A)
+        elseif elemname == "element"
+            symbol = get(attrs, "formula", "")
+            A = 0.0
+            isotopes, abundances = Isotope{T}[], Float64[]
+            for c in children(e)
+                if name(c) in ("atom", "atomref")
+                    A = _material_quantity(dicts, c, "g/mole")
+                elseif name(c) == "fraction"
+                    aa = attributes_dict(c)
+                    push!(isotopes, materials[aa["ref"]])
+                    push!(abundances, parse(Float64, aa["n"]))
                 end
-                materials[matname] = Isotope{T}(matname, 
-                                                parse(Int32, attrs["N"]), 
-                                                parse(Int32, attrs["Z"]), 
-                                                mass)
-            elseif elemname == "element"
-                attrs = attributes_dict(e)
-                matname = attrs["name"]
-                composition = []
-                for cc in child_nodes(e)
-                    if name(cc) == "fraction"
-                        aa = attributes_dict(XMLElement(cc))
-                        push!(composition,(fraction=parse(T, aa["n"]), isotope=materials[aa["ref"]]))
-                    end
+            end
+            if !isempty(isotopes)
+                materials[matname] = Element{T}(matname, symbol, isotopes, abundances)
+            else
+                Z = parse(Float64, attrs["Z"])
+                A > 0 || (A = nist_element(T, round(Int, Z)).A)       # natural element of the NIST data
+                materials[matname] = Element{T}(matname, symbol, Z, A)
+            end
+        elseif elemname == "material"
+            kw = Dict{Symbol,Any}(:state => Symbol(get(attrs, "state", "undefined")),
+                                  :formula => get(attrs, "formula", ""))
+            density, A = 0.0, 0.0
+            fractions, atoms = Pair[], Pair[]
+            for c in children(e)
+                cname = name(c)
+                if cname in ("D", "Dref")
+                    density = _material_quantity(dicts, c, "g/cm3")
+                elseif cname in ("T", "Tref")
+                    kw[:temperature] = _material_quantity(dicts, c, "K")
+                elseif cname in ("P", "Pref")
+                    kw[:pressure] = _material_quantity(dicts, c, "pascal")
+                elseif cname in ("MEE", "MEEref")
+                    kw[:I] = _material_quantity(dicts, c, "eV")
+                elseif cname in ("atom", "atomref")
+                    A = _material_quantity(dicts, c, "g/mole")
+                elseif cname == "fraction"
+                    aa = attributes_dict(c)
+                    push!(fractions, _gdml_component(dicts, aa["ref"]) => parse(Float64, aa["n"]))
+                elseif cname == "composite"
+                    aa = attributes_dict(c)
+                    push!(atoms, _gdml_component(dicts, aa["ref"]) => parse(Int, aa["n"]))
                 end
-                materials[matname] = Element{T}(matname, composition)
-            elseif elemname == "material"
-                attrs = attributes_dict(e)
-                matname = attrs["name"]
-                args = Dict{Symbol, Any}()
-                composition = []
-                if haskey(attrs,"state")
-                    args[:state] = attrs["state"]
-                end
-                for cc in child_nodes(e)
-                    if is_elementnode(cc)
-                        aa = attributes_dict(XMLElement(cc))
-                        if name(cc) == "T"
-                            args[:temperature] = parse(T, aa["value"])
-                        elseif name(cc) == "D"
-                            args[:density] = parse(T, aa["value"])
-                        elseif name(cc) == "atom"
-                            args[:mass] = parse(T, aa["value"])
-                        elseif name(cc) == "fraction"
-                            push!(composition,(fraction=parse(T, aa["n"]), element=materials[aa["ref"]]))
-                            args[:composition] = composition
-                        end
-                    end
-                end
-                materials[matname] = Material{T}(matname; args...)
+            end
+            Z = parse(Float64, get(attrs, "Z", "0"))
+            materials[matname] = if !isempty(atoms) && !isempty(fractions)
+                throw(ArgumentError("GDML: material $matname has both <composite> and <fraction>"))
+            elseif !isempty(atoms)
+                Material{T}(matname, density; atoms, kw...)
+            elseif !isempty(fractions)
+                Material{T}(matname, density; fractions, kw...)
+            elseif Z >= 1
+                Material{T}(matname, Z, A, density; kw...)
+            else                                       # e.g. a dummy material with Z=0 (DD4hep)
+                Material{T}(matname; density, kw...)
             end
         end
     end
+end
+
+# Element or material referenced by a GDML material: defined in the file, or from the NIST data
+# (e.g. "G4_AIR" or "Fe", as G4GDMLReadMaterials)
+function _gdml_component(dicts::GDMLDicts{T}, ref::AbstractString) where T
+    haskey(dicts.materials, ref) && return dicts.materials[ref]
+    haskey(_NIST_MATERIALS, ref) && return (dicts.materials[ref] = nist_material(T, ref))
+    any(e -> e.symbol == ref, _NIST_ELEMENTS) && return (dicts.materials[ref] = nist_element(T, ref))
+    throw(ArgumentError("GDML: material or element $ref is not defined"))
+end
+
+function _gdml_material(dicts::GDMLDicts{T}, ref::AbstractString) where T
+    m = _gdml_component(dicts, ref)
+    m isa Material || throw(ArgumentError("GDML: $ref is not a material"))
+    return m
 end
 
 # process <solids/>
@@ -303,7 +358,7 @@ function fill_volumes!(dicts::GDMLDicts{T}, element::XMLElement) where T<:Abstra
                         if  name(cc) == "solidref"
                             shape = solids[aa["ref"]]
                         elseif name(cc) == "materialref"
-                            material = materials[aa["ref"]]
+                            material = _gdml_material(dicts, aa["ref"])
                         elseif name(cc) == "physvol"
                             daughter = nothing
                             transformation = read_transformation(dicts, XMLElement(cc))

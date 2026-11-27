@@ -112,7 +112,7 @@ _convert_shape!(b::_ModelBuilder, shape) = error("Shape $(typeof(shape)) is not 
 #---Materials, volumes and BVHs--------------------------------------------------------------------------
 function _add_material!(b::_ModelBuilder{T}, mat) where T
     get!(b.matidx, mat) do
-        push!(b.materials, FlatMaterial{T}(mat.density, mat.temperature, mat.Amass))
+        push!(b.materials, FlatMaterial{T}(mat.density, mat.radlen, mat.nuclen, mat.electrondensity))
         Int32(length(b.materials))
     end
 end

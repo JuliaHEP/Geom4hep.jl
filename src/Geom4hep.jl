@@ -5,7 +5,8 @@ export AbstractShape, AbstractMaterial
 export Shape, NoShape, Box, Trd, Tube, Wedge, is_inside, is_outside, Cone, Polycone, Polyhedra, Torus, nz, nsections, section_index
 export CutTube, Plane, Trap, Sphere, BooleanUnion, BooleanIntersection, BooleanSubtraction, MultiUnion, add_component!, ncomponents
 export getindex, capacity, surface, estimate_capacity, estimate_surface, extent, normal, distance_to_out,  distance_to_in, inside, safety_to_out, safety_to_in
-export Material, Isotope, Element
+export Material, Isotope, Element, nist_element, nist_material, nist_material_names
+export radiation_length, nuclear_interaction_length, electron_density, mean_excitation_energy, mass_fractions, atoms_per_volume
 export Transformation3D, RotMatrix3, RotXYZ, one, isone, transform, hasrotation, hastranslation, inv, lmul!
 export PlacedVolume, Volume, Assembly, place_daughter!, draw, draw!, draw_distance_to_in, draw_distance_to_out, world_volume, children
 export AABB, area, volume, BVHParam, build_bvh, BVH, pvolindices
